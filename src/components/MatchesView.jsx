@@ -1,0 +1,441 @@
+import { useEffect, useMemo, useState } from 'react';
+import { recommendBattery, recommendBatteriesForMatches } from '../utils/batteryUtils.js';
+
+const MatchesView = () => {
+  const [mode, setMode] = useState('auto');
+  const [matches, setMatches] = useState([]);
+  const [batteries, setBatteries] = useState([]);
+  const [minutesToMatch, setMinutesToMatch] = useState('30');
+  const [matchTime, setMatchTime] = useState('');
+  const [matchNumber, setMatchNumber] = useState('1');
+  const [matchType, setMatchType] = useState('qualification');
+  const [timeMode, setTimeMode] = useState('live');
+  const [manualBaseTime, setManualBaseTime] = useState('');
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [matchesLoaded, setMatchesLoaded] = useState(false);
+  const [currentMatchId, setCurrentMatchId] = useState(null);
+  const [selectedBatteryId, setSelectedBatteryId] = useState('');
+
+  useEffect(() => {
+    const savedMatches = localStorage.getItem('matches');
+    const savedMode = localStorage.getItem('matchMode');
+    const savedBatteries = localStorage.getItem('batteries');
+
+    if (savedMatches) {
+      try {
+        setMatches(JSON.parse(savedMatches));
+      } catch (error) {
+        setMatches([]);
+      }
+    }
+    if (savedMode) setMode(savedMode);
+    if (savedBatteries) setBatteries(JSON.parse(savedBatteries));
+    setMatchesLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const savedBatteries = localStorage.getItem('batteries');
+      if (savedBatteries) setBatteries(JSON.parse(savedBatteries));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!matchesLoaded) return;
+    localStorage.setItem('matches', JSON.stringify(matches));
+  }, [matches, matchesLoaded]);
+
+  useEffect(() => {
+    localStorage.setItem('matchMode', mode);
+  }, [mode]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const nextMatch = useMemo(() => {
+    const now = Date.now();
+    const upcoming = matches
+      .filter((match) => match.status !== 'completed')
+      .filter((match) => new Date(match.scheduledTime).getTime() > now)
+      .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime));
+
+    if (upcoming.length) return { match: upcoming[0], label: 'Proximo match' };
+
+    const latest = matches
+      .filter((match) => match.status !== 'completed')
+      .slice()
+      .sort((a, b) => new Date(b.scheduledTime) - new Date(a.scheduledTime));
+
+    if (latest.length) return { match: latest[0], label: 'Match actual' };
+    return null;
+  }, [matches]);
+
+  const matchPlans = useMemo(() =>
+    recommendBatteriesForMatches({
+      batteries,
+      allowPractices: mode === 'practicas',
+      currentTime: Date.now(),
+      matches: matches.map((match) => ({
+        matchNumber: match.matchNumber,
+        matchTime: match.scheduledTime,
+        matchId: match.id,
+      })),
+    }),
+  [batteries, matches]);
+
+  const recommendation = useMemo(() => {
+    if (!nextMatch) return null;
+    const strictRecommendation = recommendBattery({
+      batteries,
+      allowPractices: mode === 'practicas',
+      currentTime: Date.now(),
+      nextMatchTime: new Date(nextMatch.match.scheduledTime).getTime(),
+      currentMatchNumber: Number(nextMatch.match.matchNumber || 0),
+    });
+    if (strictRecommendation?.recommendedBatteryId) return strictRecommendation;
+
+    const plan = matchPlans.find((item) => item.matchNumber === nextMatch.match.matchNumber);
+    if (!plan?.recommendedBatteryId) return strictRecommendation;
+
+    const fallbackBattery = batteries.find((battery) => battery.id === plan.recommendedBatteryId);
+    return {
+      recommendedBatteryId: plan.recommendedBatteryId,
+      selectionScore: plan.score ?? 0,
+      reason: plan.reason,
+      battery: fallbackBattery,
+    };
+  }, [batteries, matchPlans, mode, nextMatch]);
+
+  const handleMarkInUse = () => {
+    const selectedBattery = batteries.find((battery) => battery.id === selectedBatteryId);
+    const batteryToUse = selectedBattery || recommendation?.battery;
+    if (!batteryToUse) return;
+    if (nextMatch?.match?.id) {
+      setCurrentMatchId(nextMatch.match.id);
+      setMatches((prev) =>
+        prev.map((match) =>
+          match.id === nextMatch.match.id
+            ? {
+                ...match,
+                status: 'in_progress',
+                batteryIdUsed: batteryToUse.id,
+              }
+            : match
+        )
+      );
+    }
+    const now = new Date().toISOString();
+    const updated = batteries.map((battery) =>
+      battery.id === batteryToUse.id
+        ? {
+            ...battery,
+            status: 'en_uso',
+            lastUsedTime: now,
+            lastUsedMatch: Number(nextMatch?.match?.matchNumber || 0) || battery.lastUsedMatch,
+          }
+        : battery
+    );
+
+    setBatteries(updated);
+    localStorage.setItem('batteries', JSON.stringify(updated));
+  };
+
+  const handleAddMatch = (event) => {
+    event.preventDefault();
+    const baseTime =
+      timeMode === 'manual' && manualBaseTime
+        ? new Date(manualBaseTime).getTime()
+        : currentTime;
+    const scheduledTimestamp = matchTime
+      ? new Date(matchTime).getTime()
+      : baseTime + Math.max(1, Number(minutesToMatch)) * 60000;
+    const scheduledTime = new Date(scheduledTimestamp).toISOString();
+
+    const newMatch = {
+      id: Date.now(),
+      matchNumber: Number(matchNumber),
+      matchType,
+      scheduledTime,
+      status: 'scheduled',
+      batteryIdUsed: null,
+    };
+
+    setMatches((prev) => {
+      const updated = [...prev, newMatch];
+      if (matchesLoaded) {
+        localStorage.setItem('matches', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    setMatchNumber(String(Number(matchNumber) + 1));
+  };
+
+  const handleTerminateMatch = () => {
+    if (!nextMatch?.match?.id) return;
+    setMatches((prev) =>
+      prev.map((match) =>
+        match.id === nextMatch.match.id
+          ? {
+              ...match,
+              status: 'completed',
+            }
+          : match
+      )
+    );
+    if (currentMatchId === nextMatch.match.id) {
+      setCurrentMatchId(null);
+    }
+  };
+
+  const handleBatteryChange = (event) => {
+    const nextValue = event.target.value;
+    setSelectedBatteryId(nextValue);
+    if (!nextMatch?.match?.id) return;
+    setMatches((prev) =>
+      prev.map((match) =>
+        match.id === nextMatch.match.id
+          ? {
+              ...match,
+              batteryIdUsed: nextValue || match.batteryIdUsed,
+            }
+          : match
+      )
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-3xl font-bold">Matches</h1>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-[#9CA3AF]">Prácticas</span>
+          <button
+            onClick={() => setMode(mode === 'practicas' ? 'auto' : 'practicas')}
+            className={`w-12 h-6 rounded-full transition-colors relative ${mode === 'practicas' ? 'bg-[#7C3AED]' : 'bg-[#3A3A42]'}`}
+          >
+            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${mode === 'practicas' ? 'translate-x-6' : 'translate-x-0'}`} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6 space-y-4 lg:col-span-1">
+          <h2 className="text-xl font-semibold">Programar match</h2>
+          <form onSubmit={handleAddMatch} className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="1"
+                value={matchNumber}
+                onChange={(event) => setMatchNumber(event.target.value)}
+                className="w-1/2 bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
+                placeholder="Match #"
+              />
+              <select
+                value={matchType}
+                onChange={(event) => setMatchType(event.target.value)}
+                className="w-1/2 bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
+              >
+                <option value="qualification">Qualification</option>
+                <option value="playoffs">Playoffs</option>
+              </select>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-[#9CA3AF]">
+                Hora base: {new Date(currentTime).toLocaleTimeString()}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={`px-2 py-1 rounded text-sm ${timeMode === 'live' ? 'bg-[#7C3AED] text-white' : 'text-[#9CA3AF]'}`}
+                  onClick={() => setTimeMode('live')}
+                >
+                  Ahora
+                </button>
+                <button
+                  type="button"
+                  className={`px-2 py-1 rounded text-sm ${timeMode === 'manual' ? 'bg-[#7C3AED] text-white' : 'text-[#9CA3AF]'}`}
+                  onClick={() => setTimeMode('manual')}
+                >
+                  Manual
+                </button>
+              </div>
+            </div>
+            {timeMode === 'manual' && (
+              <input
+                type="datetime-local"
+                value={manualBaseTime}
+                onChange={(event) => setManualBaseTime(event.target.value)}
+                className="w-full bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
+              />
+            )}
+            <div className="space-y-2">
+              <input
+                type="number"
+                min="1"
+                value={minutesToMatch}
+                onChange={(event) => {
+                  setMinutesToMatch(event.target.value);
+                  if (event.target.value) setMatchTime('');
+                }}
+                className="w-full bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
+                placeholder="Minutos hasta el match"
+              />
+              <input
+                type="datetime-local"
+                value={matchTime}
+                onChange={(event) => {
+                  setMatchTime(event.target.value);
+                  if (event.target.value) setMinutesToMatch('');
+                }}
+                className="w-full bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
+                placeholder="Hora del match"
+              />
+              <p className="text-xs text-[#9CA3AF]">
+                Usa minutos o selecciona la hora exacta del match.
+              </p>
+            </div>
+            <button
+              type="submit"
+              className="btn-primary w-full text-white py-2 rounded-lg transition"
+            >
+              Agregar match
+            </button>
+          </form>
+        </div>
+
+        <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6 space-y-4 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">{nextMatch?.label || 'Proximo match'}</h2>
+            {nextMatch && (
+              <button
+                type="button"
+                onClick={handleTerminateMatch}
+                className="btn-primary text-white px-3 py-2 rounded-lg transition"
+              >
+                Terminar match
+              </button>
+            )}
+          </div>
+          {nextMatch ? (
+            <div className="space-y-2">
+              <p className="text-[#E5E7EB] font-medium">
+                Match {nextMatch.match.matchNumber} ({nextMatch.match.matchType})
+              </p>
+              <p className="text-sm text-[#9CA3AF]">
+                {new Date(nextMatch.match.scheduledTime).toLocaleString()}
+              </p>
+            </div>
+          ) : (
+            <p className="text-[#9CA3AF]">No hay matches programados.</p>
+          )}
+
+          <div className="bg-[#252530] border border-[#3A3A42] rounded-lg p-4 space-y-2">
+            <h3 className="text-lg font-semibold">Recomendacion de bateria</h3>
+            {nextMatch?.match?.batteryIdUsed || nextMatch?.match?.status === 'in_progress' ? (
+              <div className="space-y-2">
+                <p className="text-sm text-[#9CA3AF]">Batería asignada/en uso:</p>
+                <p className="text-[#E5E7EB] font-bold text-lg">
+                  {batteries.find((b) => b.id === nextMatch.match.batteryIdUsed)?.name || nextMatch.match.batteryIdUsed}
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary mt-2 text-white px-3 py-2 rounded-lg transition opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  Transcurriendo
+                </button>
+              </div>
+            ) : recommendation?.recommendedBatteryId ? (
+              <>
+                <label className="text-xs text-[#9CA3AF]">Pila para este match</label>
+                <select
+                  value={selectedBatteryId}
+                  onChange={handleBatteryChange}
+                  className="w-full bg-[#1F1F28] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
+                >
+                  <option value="">Usar recomendada</option>
+                  {batteries.map((battery) => (
+                    <option key={battery.id} value={battery.id}>
+                      {battery.name || battery.id}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[#E5E7EB] font-medium">
+                  {selectedBatteryId
+                    ? batteries.find((battery) => battery.id === selectedBatteryId)?.name || selectedBatteryId
+                    : recommendation.battery?.name || recommendation.recommendedBatteryId}
+                </p>
+                <p className="text-sm text-[#9CA3AF]">Score: {recommendation.selectionScore}</p>
+                <p className="text-sm text-[#9CA3AF]">{recommendation.reason}</p>
+                <button
+                  type="button"
+                  onClick={handleMarkInUse}
+                  className="btn-primary mt-2 text-white px-3 py-2 rounded-lg transition"
+                >
+                  Marcar en uso
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-[#9CA3AF]">{recommendation?.reason || 'Sin recomendacion disponible.'}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6">
+        <h2 className="text-xl font-semibold mb-4">Lista de matches</h2>
+        {matches.length === 0 ? (
+          <p className="text-[#9CA3AF]">No hay matches aun.</p>
+        ) : (
+          <div className="space-y-3">
+            {matches
+              .slice()
+              .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime))
+              .map((match) => {
+                const plan = matchPlans.find((item) => item.matchNumber === match.matchNumber);
+                const usedBatteryName = batteries.find((battery) => battery.id === match.batteryIdUsed)?.name || match.batteryIdUsed;
+                const recommendedName = batteries.find((battery) => battery.id === plan?.recommendedBatteryId)?.name || plan?.recommendedBatteryId;
+
+                return (
+                  <div
+                    key={match.id}
+                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border border-[#272732] rounded-lg p-3"
+                  >
+                    <div>
+                      <p className="font-medium">Match {match.matchNumber}</p>
+                      <p className="text-sm text-[#9CA3AF]">
+                        {match.matchType} · {new Date(match.scheduledTime).toLocaleString()}
+                      </p>
+                      {usedBatteryName && (
+                        <p className="text-xs text-[#A78BFA] font-medium">Pila usada: {usedBatteryName}</p>
+                      )}
+                      {!usedBatteryName && (
+                        <>
+                          <p className="text-xs text-[#9CA3AF]">
+                            Bateria recomendada: {recommendedName || 'Sin recomendacion'}
+                          </p>
+                          {plan?.reason && (
+                            <p className="text-xs text-[#6B7280]">{plan.reason}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MatchesView;
