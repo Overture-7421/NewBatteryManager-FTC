@@ -191,7 +191,7 @@ export const recommendBattery = ({
       if (!allowPractices && (classifyHealthScore(healthScore) === 'DO_NOT_USE' || healthScore < 60)) return false;
       if (status === 'disabled' || status === 'in_use') return false;
       if (isCharging && !canFinishCharging(battery, nextMatch)) return false;
-      if (isResting && restMinutes !== null && restMinutes < 5) return false;
+      if (isResting && restMinutes !== null && restMinutes < 2) return false;
       if (minutesSinceUse !== null && minutesSinceUse < 10) return false;
       return status === 'available' || status === 'charging';
     })
@@ -264,7 +264,7 @@ export const getBatteryChargingStatus = (battery, currentTime) => {
   let restStatus = 'READY';
   if (battery.status !== 'descansando') {
     restStatus = null;
-  } else if (restTimeMinutes < 5) {
+  } else if (restTimeMinutes < 2) {
     restStatus = 'NOT_READY';
   } else if (restTimeMinutes < 15) {
     restStatus = 'STABILIZING';

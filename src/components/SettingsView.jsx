@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Upload, X } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Copy, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 const PRECONFIGURED_BATTERIES_KEY = 'preconfiguredBatteries';
@@ -126,6 +126,12 @@ const SettingsView = () => {
   const [snapshot, setSnapshot] = useState(() => getStorageSnapshot());
   const [isImportingMatches, setIsImportingMatches] = useState(false);
 
+  // Maker states
+  const [makerCount, setMakerCount] = useState(5);
+  const [makerStartTime, setMakerStartTime] = useState('');
+  const [makerInterval, setMakerInterval] = useState(10);
+  const [generatedJson, setGeneratedJson] = useState('');
+
   const refreshSnapshot = () => {
     setSnapshot(getStorageSnapshot());
   };
@@ -241,6 +247,55 @@ const SettingsView = () => {
     toast.success('Runtime data cleared. Preconfigured batteries were preserved.');
   };
 
+  const handleGenerateJson = () => {
+    const count = parseInt(makerCount, 10);
+    const intervalMs = parseInt(makerInterval, 10) * 60000;
+    const startMs = makerStartTime ? new Date(makerStartTime).getTime() : Date.now();
+    
+    if (isNaN(count) || count < 1) {
+      toast.error("Invalid match count");
+      return;
+    }
+    if (isNaN(intervalMs) || intervalMs < 1) {
+      toast.error("Invalid interval");
+      return;
+    }
+
+    const matches = Array.from({ length: count }).map((_, i) => ({
+      matchNumber: i + 1,
+      matchType: "qualification",
+      scheduledTime: new Date(startMs + i * intervalMs).toISOString()
+    }));
+
+    const result = {
+      matchMode: "auto",
+      matches
+    };
+
+    setGeneratedJson(JSON.stringify(result, null, 2));
+    toast.success("JSON generated successfully.");
+  };
+
+  const handleCopyJson = () => {
+    if (!generatedJson) return;
+    navigator.clipboard.writeText(generatedJson);
+    toast.success("JSON copied to clipboard.");
+  };
+
+  const handleDownloadJson = () => {
+    if (!generatedJson) return;
+    const blob = new Blob([generatedJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'matches_config.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("JSON downloaded.");
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -315,7 +370,7 @@ const SettingsView = () => {
         <section className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6 space-y-4">
           <h2 className="text-xl font-semibold">Matches Configuration</h2>
           <p className="text-sm text-[#9CA3AF]">
-            Upload a JSON file with an array of matches, or an object with a matches array.
+            Upload a JSON file with an array of matches, or use the Maker below to generate one.
           </p>
 
           <label className="block">
@@ -334,39 +389,79 @@ const SettingsView = () => {
             <p>Current mode: <span className="text-white font-medium">{snapshot.matchMode}</span></p>
           </div>
 
-          <div className="bg-[#252530] border border-[#3A3A42] rounded-lg p-3 text-xs text-[#C4B5FD]">
-            <p className="mb-2">Supported JSON format example:</p>
-            <pre className="whitespace-pre-wrap break-words text-[#DDD6FE]">
-{`{
-  "matchMode": "auto",
-  "matches": [
-    {
-      "matchNumber": 1,
-      "matchType": "qualification",
-      "scheduledTime": "2026-04-21T09:00:00Z"
-    }
-  ]
-}`}
-            </pre>
+          <div className="mt-4 pt-4 border-t border-[#272732] space-y-3">
+            <h3 className="text-sm font-semibold">Matches Configuration Maker</h3>
+            <div className="flex flex-col md:flex-row gap-2">
+              <input
+                type="number"
+                min="1"
+                placeholder="Match Count"
+                title="Number of matches"
+                value={makerCount}
+                onChange={(e) => setMakerCount(e.target.value)}
+                className="bg-[#252530] border border-[#3A3A42] focus:border-[#7C3AED] rounded px-3 py-2 text-sm text-white flex-1"
+              />
+              <input
+                type="datetime-local"
+                title="Start Time"
+                value={makerStartTime}
+                onChange={(e) => setMakerStartTime(e.target.value)}
+                className="bg-[#252530] border border-[#3A3A42] focus:border-[#7C3AED] rounded px-3 py-2 text-sm text-white flex-1"
+              />
+              <input
+                type="number"
+                min="1"
+                placeholder="Interval (min)"
+                title="Interval in minutes"
+                value={makerInterval}
+                onChange={(e) => setMakerInterval(e.target.value)}
+                className="bg-[#252530] border border-[#3A3A42] focus:border-[#7C3AED] rounded px-3 py-2 text-sm text-white flex-1"
+              />
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleGenerateJson}
+              className="w-full md:w-auto bg-[#7C3AED]/20 hover:bg-[#7C3AED]/30 text-[#C4B5FD] border border-[#7C3AED]/50 px-4 py-2 rounded-lg transition text-sm"
+            >
+              Generate JSON Match Config
+            </button>
+
+            {generatedJson && (
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyJson}
+                    className="flex items-center gap-1 text-xs bg-[#4C1D95] hover:bg-[#5B21B6] text-white px-2 py-1 rounded transition"
+                  >
+                    <Copy className="w-3 h-3" /> Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadJson}
+                    className="flex items-center gap-1 text-xs bg-[#4C1D95] hover:bg-[#5B21B6] text-white px-2 py-1 rounded transition"
+                  >
+                    <Download className="w-3 h-3" /> Download
+                  </button>
+                </div>
+                <div className="bg-[#252530] border border-[#3A3A42] rounded-lg p-3 text-xs text-[#C4B5FD] max-h-48 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap break-words text-[#DDD6FE]">
+                    {generatedJson}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={refreshSnapshot}
-            className="text-sm text-[#A78BFA] hover:text-[#C4B5FD] transition flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            Refresh storage counters
-          </button>
-
-          <div className="pt-2 border-t border-[#272732]">
+          <div className="pt-4 border-t border-[#272732]">
             <p className="text-xs text-[#9CA3AF] mb-2">
               Clear all runtime data but keep preconfigured batteries.
             </p>
             <button
               type="button"
               onClick={handleClearDataKeepPreconfigured}
-              className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-200 px-4 py-2 rounded-lg transition"
+              className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-200 px-4 py-2 rounded-lg transition text-sm"
             >
               <Trash2 className="w-4 h-4" />
               Reset Data (Keep Preconfigured)
@@ -379,3 +474,4 @@ const SettingsView = () => {
 };
 
 export default SettingsView;
+
