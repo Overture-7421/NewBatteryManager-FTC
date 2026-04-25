@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import '@/app.css';
 import Sidebar from '@/components/Sidebar.jsx';
@@ -64,7 +64,7 @@ function App() {
           />
         )}
       </AnimatePresence>
-      <BrowserRouter>
+      <HashRouter>
         <div className="flex">
           <Sidebar />
           <main className="flex-1 p-4 md:p-8 overflow-y-auto">
@@ -78,7 +78,7 @@ function App() {
             </Routes>
           </main>
         </div>
-      </BrowserRouter>
+      </HashRouter>
       <Toaster position="top-right" theme="dark" />
     </div>
   );

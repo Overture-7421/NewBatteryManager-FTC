@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "deploy": "npm run build && robocopy dist docs /E /MIR"
+    "deploy": "npm run build && rm -rf docs && cp -r dist docs"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",
