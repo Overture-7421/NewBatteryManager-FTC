@@ -35,7 +35,7 @@ const getStorageSnapshot = () => ({
 const buildPreconfiguredBattery = (name) => ({
   id: buildBatteryId(),
   name,
-  status: 'disponible',
+  status: 'available',
   isPreconfigured: true,
   measurements: [],
   chargingStartTime: null,
@@ -309,7 +309,7 @@ const SettingsView = () => {
         <section className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6 space-y-4">
           <h2 className="text-xl font-semibold">Preconfigured Batteries</h2>
           <p className="text-sm text-[#9CA3AF]">
-            Add only the battery name. Status is set to disponible by default and this list persists.
+            Add only the battery name. Status defaults to Available and this list persists across resets.
           </p>
 
           <form onSubmit={handleAddPreconfiguredBattery} className="flex flex-col md:flex-row gap-3">

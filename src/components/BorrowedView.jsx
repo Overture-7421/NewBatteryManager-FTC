@@ -6,7 +6,7 @@ const BorrowedView = () => {
     itemName: '',
     teamName: '',
     teamNumber: '',
-    status: 'prestado',
+    status: 'borrowed',
   });
 
   useEffect(() => {
@@ -30,7 +30,7 @@ const BorrowedView = () => {
       itemName: '',
       teamName: '',
       teamNumber: '',
-      status: 'prestado',
+      status: 'borrowed',
     });
   };
 
@@ -42,14 +42,14 @@ const BorrowedView = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Prestados</h1>
+      <h1 className="text-3xl font-bold">Borrowed Items</h1>
 
       <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Registrar objeto prestado</h2>
+        <h2 className="text-xl font-semibold mb-4">Log Borrowed Item</h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input
             type="text"
-            placeholder="Objeto"
+            placeholder="Item"
             value={formData.itemName}
             onChange={(event) => setFormData({ ...formData, itemName: event.target.value })}
             className="bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#7C3AED]"
@@ -57,7 +57,7 @@ const BorrowedView = () => {
           />
           <input
             type="text"
-            placeholder="Nombre del equipo"
+            placeholder="Team Name"
             value={formData.teamName}
             onChange={(event) => setFormData({ ...formData, teamName: event.target.value })}
             className="bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#7C3AED]"
@@ -65,7 +65,7 @@ const BorrowedView = () => {
           />
           <input
             type="text"
-            placeholder="Numero de equipo"
+            placeholder="Team Number"
             value={formData.teamNumber}
             onChange={(event) => setFormData({ ...formData, teamNumber: event.target.value })}
             className="bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#7C3AED]"
@@ -76,22 +76,22 @@ const BorrowedView = () => {
             onChange={(event) => setFormData({ ...formData, status: event.target.value })}
             className="bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
           >
-            <option value="prestado">Prestado</option>
-            <option value="devuelto">Devuelto</option>
+            <option value="borrowed">Borrowed</option>
+            <option value="returned">Returned</option>
           </select>
           <button
             type="submit"
             className="btn-primary md:col-span-2 text-white py-2 rounded-lg transition"
           >
-            Guardar
+            Save
           </button>
         </form>
       </div>
 
       <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Objetos prestados</h2>
+        <h2 className="text-xl font-semibold mb-4">Borrowed Items</h2>
         {items.length === 0 ? (
-          <p className="text-[#9CA3AF]">No hay registros.</p>
+          <p className="text-[#9CA3AF]">No records yet.</p>
         ) : (
           <div className="space-y-3">
             {items.map((item) => (
@@ -110,8 +110,8 @@ const BorrowedView = () => {
                   onChange={(event) => handleStatusChange(item.id, event.target.value)}
                   className="bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
                 >
-                  <option value="prestado">Prestado</option>
-                  <option value="devuelto">Devuelto</option>
+                  <option value="borrowed">Borrowed</option>
+                  <option value="returned">Returned</option>
                 </select>
               </div>
             ))}

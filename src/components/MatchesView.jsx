@@ -66,21 +66,21 @@ const MatchesView = () => {
       .filter((match) => new Date(match.scheduledTime).getTime() > now)
       .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime));
 
-    if (upcoming.length) return { match: upcoming[0], label: 'Proximo match' };
+    if (upcoming.length) return { match: upcoming[0], label: 'Next Match' };
 
     const latest = matches
       .filter((match) => match.status !== 'completed')
       .slice()
       .sort((a, b) => new Date(b.scheduledTime) - new Date(a.scheduledTime));
 
-    if (latest.length) return { match: latest[0], label: 'Match actual' };
+    if (latest.length) return { match: latest[0], label: 'Current Match' };
     return null;
   }, [matches]);
 
   const matchPlans = useMemo(() =>
     recommendBatteriesForMatches({
       batteries,
-      allowPractices: mode === 'practicas',
+      allowPractices: mode === 'practice',
       currentTime: Date.now(),
       matches: matches.map((match) => ({
         matchNumber: match.matchNumber,
@@ -94,7 +94,7 @@ const MatchesView = () => {
     if (!nextMatch) return null;
     const strictRecommendation = recommendBattery({
       batteries,
-      allowPractices: mode === 'practicas',
+      allowPractices: mode === 'practice',
       currentTime: Date.now(),
       nextMatchTime: new Date(nextMatch.match.scheduledTime).getTime(),
       currentMatchNumber: Number(nextMatch.match.matchNumber || 0),
@@ -136,7 +136,7 @@ const MatchesView = () => {
       battery.id === batteryToUse.id
         ? {
             ...battery,
-            status: 'en_uso',
+            status: 'in_use',
             lastUsedTime: now,
             lastUsedMatch: Number(nextMatch?.match?.matchNumber || 0) || battery.lastUsedMatch,
           }
@@ -215,19 +215,19 @@ const MatchesView = () => {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h1 className="text-3xl font-bold">Matches</h1>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-[#9CA3AF]">Prácticas</span>
+          <span className="text-sm font-medium text-[#9CA3AF]">Practice Mode</span>
           <button
-            onClick={() => setMode(mode === 'practicas' ? 'auto' : 'practicas')}
-            className={`w-12 h-6 rounded-full transition-colors relative ${mode === 'practicas' ? 'bg-[#7C3AED]' : 'bg-[#3A3A42]'}`}
+            onClick={() => setMode(mode === 'practice' ? 'auto' : 'practice')}
+            className={`w-12 h-6 rounded-full transition-colors relative ${mode === 'practice' ? 'bg-[#7C3AED]' : 'bg-[#3A3A42]'}`}
           >
-            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${mode === 'practicas' ? 'translate-x-6' : 'translate-x-0'}`} />
+            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${mode === 'practice' ? 'translate-x-6' : 'translate-x-0'}`} />
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6 space-y-4 lg:col-span-1">
-          <h2 className="text-xl font-semibold">Programar match</h2>
+          <h2 className="text-xl font-semibold">Schedule Match</h2>
           <form onSubmit={handleAddMatch} className="space-y-3">
             <div className="flex gap-2">
               <input
@@ -249,7 +249,7 @@ const MatchesView = () => {
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm text-[#9CA3AF]">
-                Hora base: {new Date(currentTime).toLocaleTimeString()}
+                Base time: {new Date(currentTime).toLocaleTimeString()}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -257,7 +257,7 @@ const MatchesView = () => {
                   className={`px-2 py-1 rounded text-sm ${timeMode === 'live' ? 'bg-[#7C3AED] text-white' : 'text-[#9CA3AF]'}`}
                   onClick={() => setTimeMode('live')}
                 >
-                  Ahora
+                  Now
                 </button>
                 <button
                   type="button"
@@ -286,7 +286,7 @@ const MatchesView = () => {
                   if (event.target.value) setMatchTime('');
                 }}
                 className="w-full bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
-                placeholder="Minutos hasta el match"
+                placeholder="Minutes until match"
               />
               <input
                 type="datetime-local"
@@ -296,31 +296,31 @@ const MatchesView = () => {
                   if (event.target.value) setMinutesToMatch('');
                 }}
                 className="w-full bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
-                placeholder="Hora del match"
+                placeholder="Match time"
               />
               <p className="text-xs text-[#9CA3AF]">
-                Usa minutos o selecciona la hora exacta del match.
+                Use minutes or select the exact match time.
               </p>
             </div>
             <button
               type="submit"
               className="btn-primary w-full text-white py-2 rounded-lg transition"
             >
-              Agregar match
+              Add Match
             </button>
           </form>
         </div>
 
         <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6 space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">{nextMatch?.label || 'Proximo match'}</h2>
+            <h2 className="text-xl font-semibold">{nextMatch?.label || 'Next Match'}</h2>
             {nextMatch && (
               <button
                 type="button"
                 onClick={handleTerminateMatch}
                 className="btn-primary text-white px-3 py-2 rounded-lg transition"
               >
-                Terminar match
+                End Match
               </button>
             )}
           </div>
@@ -334,14 +334,14 @@ const MatchesView = () => {
               </p>
             </div>
           ) : (
-            <p className="text-[#9CA3AF]">No hay matches programados.</p>
+            <p className="text-[#9CA3AF]">No matches scheduled.</p>
           )}
 
           <div className="bg-[#252530] border border-[#3A3A42] rounded-lg p-4 space-y-2">
-            <h3 className="text-lg font-semibold">Recomendacion de bateria</h3>
+            <h3 className="text-lg font-semibold">Battery Recommendation</h3>
             {nextMatch?.match?.batteryIdUsed || nextMatch?.match?.status === 'in_progress' ? (
               <div className="space-y-2">
-                <p className="text-sm text-[#9CA3AF]">Batería asignada/en uso:</p>
+                <p className="text-sm text-[#9CA3AF]">Battery assigned / in use:</p>
                 <p className="text-[#E5E7EB] font-bold text-lg">
                   {batteries.find((b) => b.id === nextMatch.match.batteryIdUsed)?.name || nextMatch.match.batteryIdUsed}
                 </p>
@@ -350,18 +350,18 @@ const MatchesView = () => {
                   className="btn-primary mt-2 text-white px-3 py-2 rounded-lg transition opacity-50 cursor-not-allowed"
                   disabled
                 >
-                  Transcurriendo
+                  In Progress
                 </button>
               </div>
             ) : recommendation?.recommendedBatteryId ? (
               <>
-                <label className="text-xs text-[#9CA3AF]">Pila para este match</label>
+                <label className="text-xs text-[#9CA3AF]">Battery for this match</label>
                 <select
                   value={selectedBatteryId}
                   onChange={handleBatteryChange}
                   className="w-full bg-[#1F1F28] border border-[#3A3A42] rounded px-3 py-2 text-white focus:outline-none focus:border-[#7C3AED]"
                 >
-                  <option value="">Usar recomendada</option>
+                  <option value="">Use recommended</option>
                   {batteries.map((battery) => (
                     <option key={battery.id} value={battery.id}>
                       {battery.name || battery.id}
@@ -380,20 +380,20 @@ const MatchesView = () => {
                   onClick={handleMarkInUse}
                   className="btn-primary mt-2 text-white px-3 py-2 rounded-lg transition"
                 >
-                  Marcar en uso
+                  Mark In Use
                 </button>
               </>
             ) : (
-              <p className="text-sm text-[#9CA3AF]">{recommendation?.reason || 'Sin recomendacion disponible.'}</p>
+              <p className="text-sm text-[#9CA3AF]">{recommendation?.reason || 'No recommendation available.'}</p>
             )}
           </div>
         </div>
       </div>
 
       <div className="bg-[#1A1A22] border border-[#272732] rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Lista de matches</h2>
+        <h2 className="text-xl font-semibold mb-4">Match List</h2>
         {matches.length === 0 ? (
-          <p className="text-[#9CA3AF]">No hay matches aun.</p>
+          <p className="text-[#9CA3AF]">No matches yet.</p>
         ) : (
           <div className="space-y-3">
             {matches
@@ -415,12 +415,12 @@ const MatchesView = () => {
                         {match.matchType} · {new Date(match.scheduledTime).toLocaleString()}
                       </p>
                       {usedBatteryName && (
-                        <p className="text-xs text-[#A78BFA] font-medium">Pila usada: {usedBatteryName}</p>
+                        <p className="text-xs text-[#A78BFA] font-medium">Battery used: {usedBatteryName}</p>
                       )}
                       {!usedBatteryName && (
                         <>
                           <p className="text-xs text-[#9CA3AF]">
-                            Bateria recomendada: {recommendedName || 'Sin recomendacion'}
+                            Recommended battery: {recommendedName || 'No recommendation'}
                           </p>
                           {plan?.reason && (
                             <p className="text-xs text-[#6B7280]">{plan.reason}</p>

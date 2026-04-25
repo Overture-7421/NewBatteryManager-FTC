@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { Battery, GitBranch, Package, Settings } from 'lucide-react';
+import { Battery, GitBranch, Package, Settings, Info } from 'lucide-react';
 import LogoMark from './LogoMark.jsx';
 
 const Sidebar = () => {
   const navItems = [
-    { path: '/batteries', icon: Battery, label: 'Baterías' },
+    { path: '/batteries', icon: Battery, label: 'Batteries' },
     { path: '/matches', icon: GitBranch, label: 'Matches' },
-    { path: '/borrowed', icon: Package, label: 'Prestados' },
+    { path: '/borrowed', icon: Package, label: 'Borrowed' },
+    { path: '/info', icon: Info, label: 'Info' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 

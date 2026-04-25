@@ -31,11 +31,10 @@ const normalizeInternalResistanceMilliOhms = (internalResistance) => {
 
 const getResistanceScore = (internalResistance) => {
   const resistanceMilliOhms = normalizeInternalResistanceMilliOhms(internalResistance);
-  if (resistanceMilliOhms <= 13) return 100;
-  if (resistanceMilliOhms <= 17) return 85;
-  if (resistanceMilliOhms <= 22) return 65;
-  if (resistanceMilliOhms <= 30) return 40;
-  return 10;
+  if (resistanceMilliOhms <= 100) return 100;
+  if (resistanceMilliOhms <= 170) return 87;
+  if (resistanceMilliOhms <= 200) return 60;
+  return 15;
 };
 
 const getStabilityScore = (deltaResistance) => {
@@ -46,8 +45,8 @@ const getStabilityScore = (deltaResistance) => {
 
 export const getStatusFromInternalResistance = (internalResistance) => {
   const resistanceMilliOhms = normalizeInternalResistanceMilliOhms(internalResistance);
-  if (resistanceMilliOhms <= 15) return 'Good';
-  if (resistanceMilliOhms <= 25) return 'Fair';
+  if (resistanceMilliOhms <= 170) return 'Good';
+  if (resistanceMilliOhms <= 200) return 'Caution';
   return 'Bad';
 };
 
@@ -55,7 +54,7 @@ const getStatusScoreFromResistance = (internalResistance) => {
   const status = getStatusFromInternalResistance(internalResistance);
   const statusScoreMap = {
     Good: 100,
-    Fair: 60,
+    Caution: 60,
     Bad: 20,
   };
 
@@ -115,7 +114,7 @@ const normalizeStatus = (status) => {
   if (!status) return '';
   const value = status.toString().toLowerCase();
   if (value === 'available' || value === 'disponible') return 'available';
-  if (value === 'in use' || value === 'en_uso') return 'in_use';
+  if (value === 'in_use' || value === 'in use' || value === 'en_uso') return 'in_use';
   if (value === 'charging' || value === 'cargando') return 'charging';
   if (value === 'paused' || value === 'pausado') return 'charging';
   if (value === 'resting' || value === 'descansando') return 'available';
@@ -160,7 +159,7 @@ export const recommendBattery = ({
     return {
       recommendedBatteryId: null,
       selectionScore: 0,
-      reason: 'No hay baterias disponibles.',
+      reason: 'No batteries available.',
     };
   }
 
@@ -169,7 +168,7 @@ export const recommendBattery = ({
   const candidates = batteries
     .map((battery) => {
       const status = normalizeStatus(battery.status);
-      const isResting = battery.status === 'descansando';
+      const isResting = battery.status === 'resting' || battery.status === 'descansando';
       const isCharging = Boolean(battery.isCharging || status === 'charging');
       const healthScore = Number(battery.healthScore ?? calculateHealthScore(battery.measurements || []));
       const lastChargedTime = battery.lastChargedTime ? new Date(battery.lastChargedTime).getTime() : null;
@@ -233,7 +232,7 @@ export const recommendBattery = ({
     return {
       recommendedBatteryId: null,
       selectionScore: 0,
-      reason: 'No hay baterias que cumplan los requisitos actuales.',
+      reason: 'No batteries meet the current requirements.',
     };
   }
 
@@ -241,17 +240,17 @@ export const recommendBattery = ({
   const best = candidates[0];
   const name = best.battery.name || best.battery.id;
   const restText = best.restMinutes === null
-    ? 'sin registro de carga'
+    ? 'no charge history'
     : best.restMinutes >= 15
-      ? 'descanso suficiente'
-      : 'descanso corto';
-  const rotationText = best.rotationBonus === 100 ? 'no se uso en el ultimo match' : 'se uso en el ultimo match';
-  const availabilityText = best.availabilityBonus === 100 ? 'disponible' : 'recien cargada';
+      ? 'sufficient rest'
+      : 'short rest';
+  const rotationText = best.rotationBonus === 100 ? 'not used in the last match' : 'used in the last match';
+  const availabilityText = best.availabilityBonus === 100 ? 'available' : 'recently charged';
 
   return {
     recommendedBatteryId: best.battery.id,
     selectionScore: best.selectionScore,
-    reason: `${name} tiene la mejor salud, ${restText}, ${availabilityText} y ${rotationText}.`,
+    reason: `${name} has the best health, ${restText}, ${availabilityText} and ${rotationText}.`,
     battery: best.battery,
   };
 };
@@ -262,7 +261,7 @@ export const getBatteryChargingStatus = (battery, currentTime) => {
   const restTimeMinutes = lastChargedTime ? (now - lastChargedTime) / 60000 : 0;
 
   let restStatus = 'READY';
-  if (battery.status !== 'descansando') {
+  if (battery.status !== 'resting' && battery.status !== 'descansando') {
     restStatus = null;
   } else if (restTimeMinutes < 2) {
     restStatus = 'NOT_READY';
@@ -271,11 +270,17 @@ export const getBatteryChargingStatus = (battery, currentTime) => {
   }
 
   const warnings = [];
-  if (restStatus === 'NOT_READY') warnings.push('Necesita mas tiempo de descanso.');
-  if (battery.isCharging) warnings.push('No se puede usar mientras carga.');
-  if (battery.chargeCycles > 50) warnings.push('Bateria con muchos ciclos de carga.');
-  if (battery.chargeCycles > 100) warnings.push('Bateria degradandose por ciclos.');
-  if (battery.temperature && battery.temperature > 45) warnings.push('Bateria caliente, esperar enfriamiento.');
+  if (restStatus === 'NOT_READY') warnings.push('Needs more rest time.');
+  if (battery.isCharging) warnings.push('Cannot be used while charging.');
+  if (battery.chargeCycles > 50) warnings.push('Battery has many charge cycles.');
+  if (battery.chargeCycles > 100) warnings.push('Battery degrading from cycle count.');
+  if (battery.temperature && battery.temperature > 45) warnings.push('Battery hot — wait for it to cool down.');
+
+  const latestMeasurement = battery.measurements?.[battery.measurements.length - 1];
+  const ocv = Number(latestMeasurement?.openCircuitVoltage || 0);
+  const soc = Number(latestMeasurement?.stateOfCharge || 0);
+  if (ocv > 0 && ocv < 11.5) warnings.push('Low resting voltage (< 11.5V) — send to charger.');
+  if (soc > 0 && soc < 80) warnings.push('Low SOC (< 80%) — send to charger.');
 
   return {
     restTimeMinutes: restTimeMinutes ?? 0,
@@ -296,7 +301,7 @@ export const getChargingAlerts = (batteries, currentTime) => {
       if (justFinished) {
         alerts.push({
           type: 'info',
-          message: `Bateria ${name} termino de cargar`,
+          message: `Battery ${name} finished charging`,
           batteryId: battery.id,
         });
       }
@@ -306,14 +311,14 @@ export const getChargingAlerts = (batteries, currentTime) => {
     if (status.restStatus === 'NOT_READY') {
       alerts.push({
         type: 'warning',
-        message: `Bateria ${name} necesita mas descanso`,
+        message: `Battery ${name} needs more rest`,
         batteryId: battery.id,
       });
     }
-    if (status.restStatus === 'READY' && battery.status === 'disponible') {
+    if (status.restStatus === 'READY' && (battery.status === 'available' || battery.status === 'disponible')) {
       alerts.push({
         type: 'success',
-        message: `Bateria ${name} lista para usar`,
+        message: `Battery ${name} ready to use`,
         batteryId: battery.id,
       });
     }
@@ -356,11 +361,11 @@ export const recommendBatteriesForMatches = ({ batteries, matches, currentTime, 
     const chargingStart = battery.chargingStartTime ? new Date(battery.chargingStartTime).getTime() : null;
     let estimatedChargeEnd = now;
     
-    if (battery.status === 'cargando' && chargingStart) {
+    if ((battery.status === 'charging' || battery.status === 'cargando') && chargingStart) {
       estimatedChargeEnd = chargingStart + chargeDuration * 60000;
     } else if (battery.lastChargedTime) {
       estimatedChargeEnd = new Date(battery.lastChargedTime).getTime();
-    } else if (battery.status === 'disponible') {
+    } else if (battery.status === 'available' || battery.status === 'disponible') {
       estimatedChargeEnd = now - 15 * 60000; // Already rested
     }
 
@@ -371,7 +376,7 @@ export const recommendBatteriesForMatches = ({ batteries, matches, currentTime, 
       _chargeDuration: chargeDuration,
       _restReadyTime: restReadyTime,
       _lastUsedMatch: battery.lastUsedMatch ?? null,
-      _nextAvailableTime: battery.status === 'disponible' ? now : restReadyTime,
+      _nextAvailableTime: (battery.status === 'available' || battery.status === 'disponible') ? now : restReadyTime,
     };
   });
 
@@ -380,7 +385,7 @@ export const recommendBatteriesForMatches = ({ batteries, matches, currentTime, 
     const matchNumber = Number(match.matchNumber || 0);
 
     let candidates = simBatteries.filter((battery) => {
-      if (battery.status === 'deshabilitada' || battery.status === 'disabled') return false;
+      if (battery.status === 'disabled' || battery.status === 'deshabilitada') return false;
       const healthScore = Number(battery.healthScore ?? calculateHealthScore(battery.measurements || []));
       if (!allowPractices && (classifyHealthScore(healthScore) === 'DO_NOT_USE' || healthScore < 60)) return false;
       return battery._nextAvailableTime <= matchTime;
@@ -390,7 +395,7 @@ export const recommendBatteriesForMatches = ({ batteries, matches, currentTime, 
     if (!candidates.length) {
       usedPartial = true;
       candidates = simBatteries.filter((battery) => {
-        if (battery.status === 'deshabilitada' || battery.status === 'disabled') return false;
+        if (battery.status === 'disabled' || battery.status === 'deshabilitada') return false;
         const healthScore = Number(battery.healthScore ?? calculateHealthScore(battery.measurements || []));
         if (!allowPractices && (classifyHealthScore(healthScore) === 'DO_NOT_USE' || healthScore < 60)) return false;
         return true;
@@ -402,7 +407,7 @@ export const recommendBatteriesForMatches = ({ batteries, matches, currentTime, 
         matchNumber,
         recommendedBatteryId: null,
         score: 0,
-        reason: 'No hay baterias disponibles para este match.',
+        reason: 'No batteries available for this match.',
       };
     }
 
@@ -435,21 +440,21 @@ export const recommendBatteriesForMatches = ({ batteries, matches, currentTime, 
     const best = scored[0];
 
     const reasonParts = [];
-    if (usedPartial) reasonParts.push('No habia baterias listas, usando la mejor opcion disponible.');
+    if (usedPartial) reasonParts.push('No ready batteries — using best available option.');
     if (best.timeUntilReadyMinutes < 0) {
-      reasonParts.push('Llegara tarde a la ventana ideal de descanso.');
+      reasonParts.push('Will arrive late to the ideal rest window.');
     } else if (best.timeUntilReadyMinutes < 15) {
-      reasonParts.push('Lista justo a tiempo para el match.');
+      reasonParts.push('Ready just in time for the match.');
     } else {
-      reasonParts.push('Lista con suficiente anticipacion.');
+      reasonParts.push('Ready with enough lead time.');
     }
     if (best.rotationPenalty >= 1000) {
-      reasonParts.push('Usada recien (ten cuidado, deja la pila descansar).');
+      reasonParts.push('Used recently — let the battery rest.');
     } else if (best.rotationPenalty >= 400) {
-      reasonParts.push('Recomendada sin 4 matches de descanso por escasez (ten cuidado).');
+      reasonParts.push('Recommended without 4-match rest due to scarcity — use with caution.');
     }
     if (simBatteries.length === 1) {
-      reasonParts.push('Solo hay una bateria disponible.');
+      reasonParts.push('Only one battery available.');
     }
 
     // After selecting this battery for the future match, update its simulation state!

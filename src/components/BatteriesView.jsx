@@ -29,7 +29,7 @@ const parsePreconfiguredNames = (value) =>
       list.findIndex((candidate) => candidate.toLowerCase() === name.toLowerCase()) === index
     );
 
-const createBatteryRecord = (name, status = 'disponible', isPreconfigured = false) => ({
+const createBatteryRecord = (name, status = 'available', isPreconfigured = false) => ({
   id: Date.now() + Math.floor(Math.random() * 1000000),
   name,
   status,
@@ -47,9 +47,9 @@ const createBatteryRecord = (name, status = 'disponible', isPreconfigured = fals
 });
 
 const batteryStatuses = [
-  { value: 'disponible', label: 'Disponible' },
-  { value: 'en_uso', label: 'En uso' },
-  { value: 'deshabilitada', label: 'Deshabilitada' },
+  { value: 'available', label: 'Available' },
+  { value: 'in_use', label: 'In Use' },
+  { value: 'disabled', label: 'Disabled' },
 ];
 
 const BatteriesView = () => {
@@ -103,7 +103,7 @@ const BatteriesView = () => {
 
     const restoredBatteries = [
       ...preconfiguredStoredBatteries,
-      ...missingPreconfigured.map((name) => createBatteryRecord(name, 'disponible', true)),
+      ...missingPreconfigured.map((name) => createBatteryRecord(name, 'available', true)),
     ];
 
     setBatteries(restoredBatteries);
@@ -169,13 +169,14 @@ const BatteriesView = () => {
     const nowMs = Number(currentTime);
     let updatedAny = false;
     const updated = batteries.map((battery) => {
-      if (battery.status !== 'descansando' || !battery.lastChargedTime) return battery;
+      if (battery.status !== 'resting' && battery.status !== 'descansando') return battery;
+      if (!battery.lastChargedTime) return battery;
       const restMinutes = (nowMs - new Date(battery.lastChargedTime).getTime()) / 60000;
       if (restMinutes < 15) return battery;
       updatedAny = true;
       return {
         ...battery,
-        status: 'disponible',
+        status: 'available',
       };
     });
 
@@ -200,14 +201,14 @@ const BatteriesView = () => {
     const newAlerts = needingAlert.filter(b => !alertedBatteries.has(b.id));
 
     if (newAlerts.length > 0) {
-      const messages = newAlerts.map(b => `La batería "${b.name || 'Sin nombre'}" no ha sido actualizada en más de 1 hora.`);
+      const messages = newAlerts.map(b => `Battery "${b.name || 'Unnamed'}" has not been updated in over 1 hour.`);
       setPopoutAlerts(prev => [...prev, ...messages]);
       setAlertedBatteries(prev => new Set([...prev, ...newAlerts.map(b => b.id)]));
     }
   }, [currentTime, batteries, alertedBatteries]);
 
   const handleAddBattery = (newBattery) => {
-    const updated = [...batteries, createBatteryRecord(newBattery.name, newBattery.status || 'disponible')];
+    const updated = [...batteries, createBatteryRecord(newBattery.name, newBattery.status || 'available')];
     setBatteries(updated);
     localStorage.setItem('batteries', JSON.stringify(updated));
   };
@@ -236,7 +237,7 @@ const BatteriesView = () => {
       battery.id === batteryId
         ? {
             ...battery,
-            status: 'cargando',
+            status: 'charging',
             isCharging: true,
             chargingStartTime: now,
             chargingEndTime: null,
@@ -259,7 +260,7 @@ const BatteriesView = () => {
       const accumulated = (battery.chargingAccumulatedMs || 0) + (now - startTime);
       return {
         ...battery,
-        status: 'pausado',
+        status: 'paused',
         isCharging: false,
         chargingAccumulatedMs: accumulated,
         chargingPauseTime: new Date(now).toISOString(),
@@ -276,7 +277,7 @@ const BatteriesView = () => {
       battery.id === batteryId
         ? {
             ...battery,
-            status: 'cargando',
+            status: 'charging',
             isCharging: true,
             chargingStartTime: now,
             chargingPauseTime: null,
@@ -304,7 +305,7 @@ const BatteriesView = () => {
 
             return {
               ...battery,
-              status: shouldRest ? 'descansando' : 'disponible',
+              status: shouldRest ? 'resting' : 'available',
               isCharging: false,
               chargingEndTime: shouldRest ? now : null,
               lastChargedTime: shouldRest ? now : null,
@@ -329,12 +330,12 @@ const BatteriesView = () => {
               ? new Date(battery.lastUsedTime).getTime()
               : null;
             const usedMinutes = lastUsedMs ? (new Date(now).getTime() - lastUsedMs) / 60000 : 0;
-            const shouldRestAfterUse = nextStatus === 'disponible' && usedMinutes >= 5;
+            const shouldRestAfterUse = nextStatus === 'available' && usedMinutes >= 5;
 
             return {
               ...battery,
-              status: shouldRestAfterUse ? 'descansando' : nextStatus,
-              lastUsedTime: nextStatus === 'en_uso' ? now : battery.lastUsedTime,
+              status: shouldRestAfterUse ? 'resting' : nextStatus,
+              lastUsedTime: nextStatus === 'in_use' ? now : battery.lastUsedTime,
               lastChargedTime: shouldRestAfterUse ? now : battery.lastChargedTime,
             };
           })()
@@ -347,13 +348,13 @@ const BatteriesView = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Baterías</h1>
+        <h1 className="text-3xl font-bold">Batteries</h1>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setShowAllDetails((prev) => !prev)}
             className="rounded p-2 text-white bg-[#252530] border border-[#3A3A42] hover:bg-[#2a2a32] transition"
-            aria-label={showAllDetails ? 'Ocultar detalles' : 'Mostrar detalles'}
+            aria-label={showAllDetails ? 'Hide details' : 'Show details'}
           >
             {showAllDetails ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
           </button>
@@ -362,7 +363,7 @@ const BatteriesView = () => {
             className="btn-primary flex items-center gap-2 text-white px-4 py-2 rounded-lg transition"
           >
             <Plus className="w-5 h-5" />
-            Agregar Batería
+            Add Battery
           </button>
         </div>
       </div>
@@ -424,7 +425,7 @@ const BatteriesView = () => {
               <div className="flex-1 text-sm font-medium">{msg}</div>
               <button 
                 onClick={() => {
-                  if (window.confirm('¿Seguro que quieres ignorar esta alerta?')) {
+                  if (window.confirm('Dismiss this alert?')) {
                     setPopoutAlerts(prev => prev.filter((_, i) => i !== idx));
                   }
                 }}

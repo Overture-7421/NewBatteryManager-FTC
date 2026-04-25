@@ -71,14 +71,14 @@ const TestModal = ({ isOpen, battery, onClose }) => {
           <input
             type="number"
             step="0.01"
-            placeholder="Resistencia interna (mΩ u Ω, ej: 15 o 0.015)"
+            placeholder="Internal resistance (mΩ or Ω, e.g. 15 or 0.015)"
             value={testData.internalResistance}
             onChange={(e) => setTestData({ ...testData, internalResistance: e.target.value })}
             className="w-full bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#7C3AED]"
             required
           />
           <div>
-            <label className="block text-sm text-[#9CA3AF] mb-1">Status (auto por resistencia)</label>
+            <label className="block text-sm text-[#9CA3AF] mb-1">Status (auto from resistance)</label>
             <input
               type="text"
               value={derivedStatus}
@@ -107,7 +107,7 @@ const TestModal = ({ isOpen, battery, onClose }) => {
               type="submit"
               className="btn-primary flex-1 text-white py-2 rounded transition"
             >
-              Guardar
+              Save
             </button>
           </div>
         </form>

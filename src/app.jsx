@@ -7,6 +7,7 @@ import BatteriesView from '@/components/BatteriesView.jsx';
 import MatchesView from '@/components/MatchesView.jsx';
 import BorrowedView from '@/components/BorrowedView.jsx';
 import SettingsView from '@/components/SettingsView.jsx';
+import InfoView from '@/components/InfoView.jsx';
 import IntroOverlay from '@/components/IntroOverlay.jsx';
 import { Toaster } from 'sonner';
 
@@ -73,6 +74,7 @@ function App() {
               <Route path="/matches" element={<MatchesView />} />
               <Route path="/borrowed" element={<BorrowedView />} />
               <Route path="/settings" element={<SettingsView />} />
+              <Route path="/info" element={<InfoView />} />
             </Routes>
           </main>
         </div>

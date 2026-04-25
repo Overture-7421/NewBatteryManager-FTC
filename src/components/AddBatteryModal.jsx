@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 const AddBatteryModal = ({ isOpen, onClose, onAdd, statusOptions }) => {
   const [formData, setFormData] = useState({
     name: '',
-    status: 'disponible',
+    status: 'available',
   });
 
   const handleSubmit = (e) => {
@@ -12,7 +12,7 @@ const AddBatteryModal = ({ isOpen, onClose, onAdd, statusOptions }) => {
     onAdd(formData);
     setFormData({
       name: '',
-      status: 'disponible',
+      status: 'available',
     });
     onClose();
   };

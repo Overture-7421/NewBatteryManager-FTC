@@ -45,8 +45,8 @@ const BatteryCard = ({
 
   const lastMeasurementTime = latest?.timestamp ? new Date(latest.timestamp).getTime() : 0;
   const lastUsedTime = battery.lastUsedTime ? new Date(battery.lastUsedTime).getTime() : 0;
-  const isEnUso = battery.status === 'en_uso';
-  const isDevueltoSinMedir = battery.status === 'disponible' && lastUsedTime > lastMeasurementTime;
+  const isEnUso = battery.status === 'in_use';
+  const isDevueltoSinMedir = battery.status === 'available' && lastUsedTime > lastMeasurementTime;
 
   let displayHealth = health;
   let showRealHealth = false;
@@ -62,21 +62,21 @@ const BatteryCard = ({
   const ageMinutes = lastUpdateTime ? (Number(currentTime || Date.now()) - lastUpdateTime) / 60000 : 0;
   const needsUpdateWarning = ageMinutes >= 30;
 
-  const chargingStateLabel = battery.status === 'pausado'
-    ? 'Pausado'
+  const chargingStateLabel = battery.status === 'paused' || battery.status === 'pausado'
+    ? 'Paused'
     : battery.isCharging
-      ? 'Cargando'
-      : battery.status === 'descansando'
-        ? 'Descansando'
-        : battery.status === 'en_uso'
-          ? 'En uso'
-          : 'Lista';
+      ? 'Charging'
+      : battery.status === 'resting' || battery.status === 'descansando'
+        ? 'Resting'
+        : battery.status === 'in_use' || battery.status === 'en_uso'
+          ? 'In Use'
+          : 'Ready';
   const showChargingRow = chargingStateLabel && chargingStateLabel !== statusLabel;
 
   const getChargingIndicator = () => {
-    if (battery.status === 'pausado') return 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30';
+    if (battery.status === 'paused' || battery.status === 'pausado') return 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30';
     if (battery.isCharging) return 'bg-blue-500/10 text-blue-300 border-blue-500/30';
-    if (battery.status === 'descansando') return 'bg-red-500/10 text-red-300 border-red-500/30';
+    if (battery.status === 'resting' || battery.status === 'descansando') return 'bg-red-500/10 text-red-300 border-red-500/30';
     return 'bg-green-500/10 text-green-300 border-green-500/30';
   };
 
@@ -89,21 +89,25 @@ const BatteryCard = ({
   };
 
   const getRestDisplay = () => {
-    const restMinutes = battery.status === 'descansando' ? (chargingStatus.restTimeMinutes || 0) : 0;
+    const restMinutes = (battery.status === 'resting' || battery.status === 'descansando') ? (chargingStatus.restTimeMinutes || 0) : 0;
     if (restMinutes < 15) {
-      return `Descanso -${Math.max(0, Math.ceil(15 - restMinutes))} min`;
+      return `Resting -${Math.max(0, Math.ceil(15 - restMinutes))} min`;
     }
-    return `Descanso ${Math.floor(restMinutes)} min`;
+    return `Resting ${Math.floor(restMinutes)} min`;
   };
 
   const getStatusStyles = (status) => {
     switch (status) {
+      case 'available':
       case 'disponible':
         return 'bg-green-500/10 text-green-300 border-green-500/30';
+      case 'in_use':
       case 'en_uso':
         return 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30';
+      case 'charging':
       case 'cargando':
         return 'bg-blue-500/10 text-blue-300 border-blue-500/30';
+      case 'disabled':
       case 'deshabilitada':
         return 'bg-red-500/10 text-red-300 border-red-500/30';
       default:
@@ -147,7 +151,7 @@ const BatteryCard = ({
               type="button"
               onClick={() => setShowDetails((prev) => !prev)}
               className="rounded p-2 text-white bg-[#252530] border border-[#3A3A42] hover:bg-[#2a2a32] transition"
-              aria-label={showDetails ? 'Ocultar detalles' : 'Mostrar detalles'}
+              aria-label={showDetails ? 'Hide details' : 'Show details'}
             >
               {showDetails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -161,7 +165,7 @@ const BatteryCard = ({
             </span>
           )}
           <select
-            value={battery.status || 'disponible'}
+            value={battery.status || 'available'}
             onChange={(e) => onStatusChange?.(battery.id, e.target.value)}
             className="ml-auto bg-[#252530] border border-[#3A3A42] rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#7C3AED]"
           >
@@ -185,12 +189,12 @@ const BatteryCard = ({
               </span>
               <span className="text-xs text-[#9CA3AF]">
                 {battery.isCharging
-                  ? `Cargando ${getElapsedMinutes(battery.chargingStartTime)} min`
-                  : battery.status === 'pausado'
-                    ? `Pausado ${Math.floor((battery.chargingAccumulatedMs || 0) / 60000)} min`
-                    : battery.status === 'descansando'
+                  ? `Charging ${getElapsedMinutes(battery.chargingStartTime)} min`
+                  : (battery.status === 'paused' || battery.status === 'pausado')
+                    ? `Paused ${Math.floor((battery.chargingAccumulatedMs || 0) / 60000)} min`
+                    : (battery.status === 'resting' || battery.status === 'descansando')
                       ? getRestDisplay()
-                      : 'Lista'}
+                      : 'Ready'}
               </span>
             </div>
           )}
@@ -198,13 +202,13 @@ const BatteryCard = ({
             <div className="flex items-end gap-2">
               <span className={`text-2xl font-bold ${getHealthColor(displayHealth)}`}>{displayHealth}</span>
               {showRealHealth && (
-                <span className="text-sm text-[#9CA3AF] mb-1 line-through" title="Última salud conocida">
+                <span className="text-sm text-[#9CA3AF] mb-1 line-through" title="Last known health">
                   {health}
                 </span>
               )}
               {isDoNotUse && (
                 <span className="ml-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                  Prácticas
+                  Practice
                 </span>
               )}
             </div>
@@ -262,7 +266,7 @@ const BatteryCard = ({
         {needsUpdateWarning && (
           <div className="mt-3 text-red-400 text-xs flex items-center gap-1 bg-red-400/10 p-2 rounded border border-red-400/20">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            <span>Falta actualización de info de batería (&gt;30 min)</span>
+            <span>Battery info outdated (&gt;30 min)</span>
           </div>
         )}
 
@@ -274,18 +278,18 @@ const BatteryCard = ({
           Battery Info
         </button>
 
-        {battery.status === 'en_uso' ? (
+        {(battery.status === 'in_use' || battery.status === 'en_uso') ? (
           <div className="mt-3 transition-all duration-300">
             <button
-              onClick={() => onStatusChange?.(battery.id, 'disponible')}
+              onClick={() => onStatusChange?.(battery.id, 'available')}
               className="btn-primary w-full text-white py-2 rounded-lg transition"
             >
-              Devuelto
+              Returned
             </button>
           </div>
         ) : (
           <div className="mt-3 transition-all duration-300">
-          {battery.status !== 'cargando' && battery.status !== 'pausado' && (
+          {battery.status !== 'charging' && battery.status !== 'cargando' && battery.status !== 'paused' && battery.status !== 'pausado' && (
             <button
               onClick={() => onStartCharging?.(battery.id)}
               className="btn-primary w-full text-white py-2 rounded-lg transition"
@@ -294,7 +298,7 @@ const BatteryCard = ({
             </button>
           )}
 
-          {battery.status === 'cargando' && (
+          {(battery.status === 'charging' || battery.status === 'cargando') && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onStopCharging?.(battery.id)}
@@ -313,7 +317,7 @@ const BatteryCard = ({
             </div>
           )}
 
-          {battery.status === 'pausado' && (
+          {(battery.status === 'paused' || battery.status === 'pausado') && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onResumeCharging?.(battery.id)}
