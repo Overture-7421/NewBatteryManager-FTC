@@ -45,6 +45,7 @@ const getStabilityScore = (deltaResistance) => {
 
 export const getStatusFromInternalResistance = (internalResistance) => {
   const resistanceMilliOhms = normalizeInternalResistanceMilliOhms(internalResistance);
+  if (resistanceMilliOhms < 100) return 'Excellent';
   if (resistanceMilliOhms <= 170) return 'Good';
   if (resistanceMilliOhms <= 200) return 'Caution';
   return 'Bad';
@@ -53,6 +54,7 @@ export const getStatusFromInternalResistance = (internalResistance) => {
 const getStatusScoreFromResistance = (internalResistance) => {
   const status = getStatusFromInternalResistance(internalResistance);
   const statusScoreMap = {
+    Excellent: 100,
     Good: 100,
     Caution: 60,
     Bad: 20,

@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { recommendBattery, recommendBatteriesForMatches } from '../utils/batteryUtils.js';
 
+const findBatteryById = (list, id) =>
+  id != null ? list.find((b) => String(b.id) === String(id)) : undefined;
+
+const BatteryLabel = ({ battery, fallback }) => {
+  if (!battery) return <span>{fallback ?? '—'}</span>;
+  return (
+    <span>
+      {battery.name || 'Unnamed'}
+      <span className="text-xs text-[#6B7280] ml-1 font-normal">#{String(battery.id).slice(-5)}</span>
+    </span>
+  );
+};
+
 const MatchesView = () => {
   const [mode, setMode] = useState('auto');
   const [matches, setMatches] = useState([]);
@@ -92,29 +105,28 @@ const MatchesView = () => {
 
   const recommendation = useMemo(() => {
     if (!nextMatch) return null;
-    const strictRecommendation = recommendBattery({
+    // Use the match plan so the top panel always agrees with the match list.
+    const plan = matchPlans.find((item) => item.matchNumber === nextMatch.match.matchNumber);
+    if (plan?.recommendedBatteryId) {
+      return {
+        recommendedBatteryId: plan.recommendedBatteryId,
+        selectionScore: plan.score ?? 0,
+        reason: plan.reason,
+        battery: findBatteryById(batteries, plan.recommendedBatteryId),
+      };
+    }
+    // Fallback to the single-match algorithm when no plan entry exists.
+    return recommendBattery({
       batteries,
       allowPractices: mode === 'practice',
       currentTime: Date.now(),
       nextMatchTime: new Date(nextMatch.match.scheduledTime).getTime(),
       currentMatchNumber: Number(nextMatch.match.matchNumber || 0),
     });
-    if (strictRecommendation?.recommendedBatteryId) return strictRecommendation;
-
-    const plan = matchPlans.find((item) => item.matchNumber === nextMatch.match.matchNumber);
-    if (!plan?.recommendedBatteryId) return strictRecommendation;
-
-    const fallbackBattery = batteries.find((battery) => battery.id === plan.recommendedBatteryId);
-    return {
-      recommendedBatteryId: plan.recommendedBatteryId,
-      selectionScore: plan.score ?? 0,
-      reason: plan.reason,
-      battery: fallbackBattery,
-    };
   }, [batteries, matchPlans, mode, nextMatch]);
 
   const handleMarkInUse = () => {
-    const selectedBattery = batteries.find((battery) => battery.id === selectedBatteryId);
+    const selectedBattery = findBatteryById(batteries, selectedBatteryId);
     const batteryToUse = selectedBattery || recommendation?.battery;
     if (!batteryToUse) return;
     if (nextMatch?.match?.id) {
@@ -343,7 +355,10 @@ const MatchesView = () => {
               <div className="space-y-2">
                 <p className="text-sm text-[#9CA3AF]">Battery assigned / in use:</p>
                 <p className="text-[#E5E7EB] font-bold text-lg">
-                  {batteries.find((b) => b.id === nextMatch.match.batteryIdUsed)?.name || nextMatch.match.batteryIdUsed}
+                  <BatteryLabel
+                    battery={findBatteryById(batteries, nextMatch.match.batteryIdUsed)}
+                    fallback={nextMatch.match.batteryIdUsed}
+                  />
                 </p>
                 <button
                   type="button"
@@ -369,9 +384,14 @@ const MatchesView = () => {
                   ))}
                 </select>
                 <p className="text-[#E5E7EB] font-medium">
-                  {selectedBatteryId
-                    ? batteries.find((battery) => battery.id === selectedBatteryId)?.name || selectedBatteryId
-                    : recommendation.battery?.name || recommendation.recommendedBatteryId}
+                  <BatteryLabel
+                    battery={
+                      selectedBatteryId
+                        ? findBatteryById(batteries, selectedBatteryId)
+                        : recommendation.battery
+                    }
+                    fallback={recommendation.recommendedBatteryId}
+                  />
                 </p>
                 <p className="text-sm text-[#9CA3AF]">Score: {recommendation.selectionScore}</p>
                 <p className="text-sm text-[#9CA3AF]">{recommendation.reason}</p>
@@ -401,8 +421,8 @@ const MatchesView = () => {
               .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime))
               .map((match) => {
                 const plan = matchPlans.find((item) => item.matchNumber === match.matchNumber);
-                const usedBatteryName = batteries.find((battery) => battery.id === match.batteryIdUsed)?.name || match.batteryIdUsed;
-                const recommendedName = batteries.find((battery) => battery.id === plan?.recommendedBatteryId)?.name || plan?.recommendedBatteryId;
+                const usedBattery = findBatteryById(batteries, match.batteryIdUsed);
+                const recommendedBattery = findBatteryById(batteries, plan?.recommendedBatteryId);
 
                 return (
                   <div
@@ -414,13 +434,17 @@ const MatchesView = () => {
                       <p className="text-sm text-[#9CA3AF]">
                         {match.matchType} · {new Date(match.scheduledTime).toLocaleString()}
                       </p>
-                      {usedBatteryName && (
-                        <p className="text-xs text-[#A78BFA] font-medium">Battery used: {usedBatteryName}</p>
+                      {(usedBattery || match.batteryIdUsed) && (
+                        <p className="text-xs text-[#A78BFA] font-medium">
+                          Battery used: <BatteryLabel battery={usedBattery} fallback={match.batteryIdUsed} />
+                        </p>
                       )}
-                      {!usedBatteryName && (
+                      {!match.batteryIdUsed && (
                         <>
                           <p className="text-xs text-[#9CA3AF]">
-                            Recommended battery: {recommendedName || 'No recommendation'}
+                            Recommended: {recommendedBattery
+                              ? <BatteryLabel battery={recommendedBattery} />
+                              : (plan?.recommendedBatteryId || 'No recommendation')}
                           </p>
                           {plan?.reason && (
                             <p className="text-xs text-[#6B7280]">{plan.reason}</p>
