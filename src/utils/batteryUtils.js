@@ -43,6 +43,13 @@ const getStabilityScore = (deltaResistance) => {
   return 30;
 };
 
+export const displayOhms = (internalResistance) => {
+  const value = Number(internalResistance);
+  if (!value || !Number.isFinite(value)) return null;
+  const ohms = value > 1 ? value / 1000 : value;
+  return ohms.toFixed(3);
+};
+
 export const getStatusFromInternalResistance = (internalResistance) => {
   const resistanceMilliOhms = normalizeInternalResistanceMilliOhms(internalResistance);
   if (resistanceMilliOhms < 100) return 'Excellent';

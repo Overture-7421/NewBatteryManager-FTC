@@ -71,7 +71,7 @@ const InfoView = () => {
             [
               'Status Labels',
               <span key="note" className="text-yellow-300 text-xs">
-                Ignore Beak's Good / Fair / Bad — calibrated for Tetrix, not REV Slim. Use the raw mΩ reading.
+                Ignore Beak's Good / Fair / Bad — calibrated for Tetrix, not REV Slim. Use the raw Ω reading.
               </span>,
             ],
           ]}
@@ -80,20 +80,20 @@ const InfoView = () => {
 
       <Section title="Internal Resistance Ranges">
         <Table
-          headers={['Range (mΩ)', 'Condition', 'Competition Status']}
+          headers={['Range (Ω)', 'Condition', 'Competition Status']}
           rows={[
             [
-              '< 100 mΩ',
+              '< 0.100 Ω',
               'Excellent',
               <Badge key="a" color="green">Match Ready</Badge>,
             ],
             [
-              '100 – 170 mΩ',
+              '0.100 – 0.170 Ω',
               'Good',
               <Badge key="b" color="green">Match Ready</Badge>,
             ],
             [
-              '170 – 200 mΩ',
+              '0.170 – 0.200 Ω',
               'Caution',
               <span key="c" className="flex items-center gap-2 flex-wrap">
                 <Badge color="yellow">Caution</Badge>
@@ -101,7 +101,7 @@ const InfoView = () => {
               </span>,
             ],
             [
-              '> 200 mΩ',
+              '> 0.200 Ω',
               'Bad',
               <span key="d" className="flex items-center gap-2 flex-wrap">
                 <Badge color="red">Reject from Competition</Badge>
@@ -111,7 +111,7 @@ const InfoView = () => {
           ]}
         />
         <p className="text-xs text-[#9CA3AF]">
-          A new REV Slim in excellent condition reads below 100 mΩ. Readings rise with age and cycle count.
+          A new REV Slim in excellent condition reads below 0.100 Ω. Readings rise with age and cycle count.
         </p>
       </Section>
 

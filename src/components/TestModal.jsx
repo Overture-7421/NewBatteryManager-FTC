@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { getStatusFromInternalResistance } from '../utils/batteryUtils.js';
 
-const TestModal = ({ isOpen, battery, onClose }) => {
+const TestModal = ({ isOpen, battery, onClose, onSave }) => {
   const [testData, setTestData] = useState({
     openCircuitVoltage: '',
     loadVoltage: '',
@@ -17,27 +17,23 @@ const TestModal = ({ isOpen, battery, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (battery) {
-      const measurements = battery.measurements || [];
-      measurements.push({
-        ...testData,
-        openCircuitVoltage:
-          testData.openCircuitVoltage === '' ? null : parseFloat(testData.openCircuitVoltage),
-        loadVoltage:
-          testData.loadVoltage === '' ? null : parseFloat(testData.loadVoltage),
-        internalResistance: parseFloat(testData.internalResistance),
-        stateOfCharge: parseFloat(testData.stateOfCharge),
-        status: getStatusFromInternalResistance(testData.internalResistance),
-        timestamp: new Date().toISOString(),
-      });
-      const updated = { ...battery, measurements };
-      localStorage.setItem('batteries', JSON.stringify(
-        JSON.parse(localStorage.getItem('batteries') || '[]').map(b => 
-          b.id === battery.id ? updated : b
-        )
-      ));
-      onClose();
-    }
+    if (!battery) return;
+    const newMeasurement = {
+      openCircuitVoltage: testData.openCircuitVoltage === '' ? null : parseFloat(testData.openCircuitVoltage),
+      loadVoltage: testData.loadVoltage === '' ? null : parseFloat(testData.loadVoltage),
+      internalResistance: parseFloat(testData.internalResistance),
+      stateOfCharge: parseFloat(testData.stateOfCharge),
+      status: getStatusFromInternalResistance(testData.internalResistance),
+      timestamp: new Date().toISOString(),
+    };
+    const measurements = [...(battery.measurements || []), newMeasurement];
+    const updated = { ...battery, measurements };
+    const allBatteries = JSON.parse(localStorage.getItem('batteries') || '[]');
+    localStorage.setItem('batteries', JSON.stringify(
+      allBatteries.map(b => b.id === battery.id ? updated : b)
+    ));
+    onSave?.(updated);
+    onClose();
   };
 
   if (!isOpen || !battery) return null;
@@ -71,7 +67,7 @@ const TestModal = ({ isOpen, battery, onClose }) => {
           <input
             type="number"
             step="0.01"
-            placeholder="Internal resistance (mΩ or Ω, e.g. 15 or 0.015)"
+            placeholder="Internal resistance (Ω, e.g. 0.085)"
             value={testData.internalResistance}
             onChange={(e) => setTestData({ ...testData, internalResistance: e.target.value })}
             className="w-full bg-[#252530] border border-[#3A3A42] rounded px-3 py-2 text-white placeholder-[#9CA3AF] focus:outline-none focus:border-[#7C3AED]"

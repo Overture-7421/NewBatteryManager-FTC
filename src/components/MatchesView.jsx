@@ -383,17 +383,21 @@ const MatchesView = () => {
                     </option>
                   ))}
                 </select>
-                <p className="text-[#E5E7EB] font-medium">
-                  <BatteryLabel
-                    battery={
-                      selectedBatteryId
-                        ? findBatteryById(batteries, selectedBatteryId)
-                        : recommendation.battery
-                    }
-                    fallback={recommendation.recommendedBatteryId}
-                  />
-                </p>
-                <p className="text-sm text-[#9CA3AF]">Score: {recommendation.selectionScore}</p>
+                <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/40 rounded-lg px-4 py-3 flex items-center justify-between">
+                  <span className="text-[#C4B5FD] font-bold text-lg">
+                    <BatteryLabel
+                      battery={
+                        selectedBatteryId
+                          ? findBatteryById(batteries, selectedBatteryId)
+                          : recommendation.battery
+                      }
+                      fallback={recommendation.recommendedBatteryId}
+                    />
+                  </span>
+                  <span className="text-xs bg-[#7C3AED]/30 text-[#A78BFA] px-2 py-0.5 rounded-full border border-[#7C3AED]/40">
+                    Score {recommendation.selectionScore}
+                  </span>
+                </div>
                 <p className="text-sm text-[#9CA3AF]">{recommendation.reason}</p>
                 <button
                   type="button"
@@ -441,11 +445,14 @@ const MatchesView = () => {
                       )}
                       {!match.batteryIdUsed && (
                         <>
-                          <p className="text-xs text-[#9CA3AF]">
-                            Recommended: {recommendedBattery
-                              ? <BatteryLabel battery={recommendedBattery} />
-                              : (plan?.recommendedBatteryId || 'No recommendation')}
-                          </p>
+                          {recommendedBattery ? (
+                            <p className="text-xs font-semibold text-[#A78BFA] inline-flex items-center gap-1 mt-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#7C3AED] inline-block" />
+                              <BatteryLabel battery={recommendedBattery} />
+                            </p>
+                          ) : (
+                            <p className="text-xs text-[#6B7280]">No recommendation</p>
+                          )}
                           {plan?.reason && (
                             <p className="text-xs text-[#6B7280]">{plan.reason}</p>
                           )}

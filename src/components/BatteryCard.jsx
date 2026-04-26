@@ -6,6 +6,7 @@ import {
   getBatteryChargingStatus,
   getStatusFromInternalResistance,
   classifyHealthScore,
+  displayOhms,
 } from '../utils/batteryUtils.js';
 
 const hasMeasurementValue = (value) =>
@@ -247,8 +248,8 @@ const BatteryCard = ({
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#9CA3AF]">Resistencia interna:</span>
-                  <span>{latest.internalResistance?.toFixed(2)} mΩ</span>
+                  <span className="text-[#9CA3AF]">Internal resistance:</span>
+                  <span>{displayOhms(latest.internalResistance) ?? '—'} Ω</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[#9CA3AF]">SOC:</span>

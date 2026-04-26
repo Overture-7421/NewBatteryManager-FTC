@@ -405,10 +405,21 @@ const BatteriesView = () => {
         statusOptions={batteryStatuses}
       />
 
-      <TestModal 
+      <TestModal
         isOpen={showTestModal}
         battery={selectedBattery}
         onClose={() => setShowTestModal(false)}
+        onSave={(updatedBattery) => {
+          setBatteries(prev => prev.map(b => b.id === updatedBattery.id ? updatedBattery : b));
+          setAlertedBatteries(prev => {
+            const next = new Set(prev);
+            next.delete(updatedBattery.id);
+            return next;
+          });
+          setPopoutAlerts(prev =>
+            prev.filter(msg => !msg.includes(`"${updatedBattery.name || 'Unnamed'}"`))
+          );
+        }}
         currentTime={currentTime}
       />
 
